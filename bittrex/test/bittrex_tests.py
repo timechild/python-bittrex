@@ -1,8 +1,6 @@
-__author__ = 'eric'
-
 import unittest
 import json
-from bittrex.bittrex import Bittrex
+from bittrex.bittrex import Bittrex, USING_V2_0, USING_V1_1, BUY_ORDERBOOK
 
 
 def test_basic_response(unit_test, result, method_name):
@@ -17,13 +15,14 @@ def test_auth_basic_failures(unit_test, result, test_type):
     unit_test.assertIsNone(result['result'], "{0:s} failed response result not None".format(test_type))
 
 
-class TestBittrexPublicAPI(unittest.TestCase):
+class TestBittrexV11PublicAPI(unittest.TestCase):
     """
     Integration tests for the Bittrex public API.
     These will fail in the absence of an internet connection or if bittrex API goes down
     """
+
     def setUp(self):
-        self.bittrex = Bittrex(None, None)
+        self.bittrex = Bittrex(None, None, using_api=USING_V1_1)
 
     def test_handles_none_key_or_secret(self):
         self.bittrex = Bittrex(None, None)
@@ -47,10 +46,50 @@ class TestBittrexPublicAPI(unittest.TestCase):
     def test_get_currencies(self):
         actual = self.bittrex.get_currencies()
         test_basic_response(self, actual, "get_currencies")
-        pass
+
+    def test_get_orderbook(self):
+        actual = self.bittrex.get_orderbook('BTC-LTC', depth_type=BUY_ORDERBOOK)
+        test_basic_response(self, actual, "get_orderbook")
 
 
-class TestBittrexAccountAPI(unittest.TestCase):
+class TestBittrexV20PublicAPI(unittest.TestCase):
+    """
+    Integration tests for the Bittrex public API.
+    These will fail in the absence of an internet connection or if bittrex API goes down
+    """
+
+    def setUp(self):
+        self.bittrex = Bittrex(None, None, using_api=USING_V2_0)
+
+    def test_handles_none_key_or_secret(self):
+        self.bittrex = Bittrex(None, None)
+        # could call any public method here
+        actual = self.bittrex.get_markets()
+        self.assertTrue(actual['success'], "failed with None key and None secret")
+
+        self.bittrex = Bittrex("123", None)
+        actual = self.bittrex.get_markets()
+        self.assertTrue(actual['success'], "failed with None secret")
+
+        self.bittrex = Bittrex(None, "123")
+        self.assertTrue(actual['success'], "failed with None key")
+
+    def test_get_markets(self):
+        actual = self.bittrex.get_markets()
+        test_basic_response(self, actual, "get_markets")
+        self.assertTrue(isinstance(actual['result'], list), "result is not a list")
+        self.assertTrue(len(actual['result']) > 0, "result list is 0-length")
+
+    def test_get_currencies(self):
+        actual = self.bittrex.get_currencies()
+        test_basic_response(self, actual, "get_currencies")
+
+    def test_get_orderbook(self):
+        self.assertRaisesRegexp(Exception, 'method call not available', self.bittrex.get_orderbook,
+                                market='BTC-LTC', depth_type=BUY_ORDERBOOK)
+
+
+class TestBittrexV11AccountAPI(unittest.TestCase):
     """
     Integration tests for the Bittrex Account API.
       * These will fail in the absence of an internet connection or if bittrex API goes down.
@@ -62,6 +101,7 @@ class TestBittrexAccountAPI(unittest.TestCase):
       "secret": "3345745634234534"
     }
     """
+
     def setUp(self):
         with open("secrets.json") as secrets_file:
             self.secrets = json.load(secrets_file)
@@ -99,6 +139,6 @@ class TestBittrexAccountAPI(unittest.TestCase):
                          "requested currency {0:s} does not match returned currency {1:s}"
                          .format("BTC", actual['result']['Currency']))
 
+
 if __name__ == '__main__':
     unittest.main()
-
