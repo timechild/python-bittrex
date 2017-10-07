@@ -30,6 +30,12 @@ BUY_ORDERBOOK = 'buy'
 SELL_ORDERBOOK = 'sell'
 BOTH_ORDERBOOK = 'both'
 
+TICKINTERVAL_ONEMIN = 'oneMin'
+TICKINTERVAL_FIVEMIN = 'fiveMin'
+TICKINTERVAL_HOUR = 'hour'
+TICKINTERVAL_THIRTYMIN = 'thirtyMin'
+TICKINTERVAL_DAY = 'Day'
+
 ORDERTYPE_LIMIT = 'LIMIT'
 ORDERTYPE_MARKET = 'MARKET'
 
@@ -43,8 +49,8 @@ CONDITIONTYPE_LESS_THAN = 'LESS_THAN'
 CONDITIONTYPE_STOP_LOSS_FIXED = 'STOP_LOSS_FIXED'
 CONDITIONTYPE_STOP_LOSS_PERCENTAGE = 'STOP_LOSS_PERCENTAGE'
 
-USING_V1_1 = 'v1.1'
-USING_V2_0 = 'v2.0'
+API_V1_1 = 'v1.1'
+API_V2_0 = 'v2.0'
 
 BASE_URL_V1_1 = 'https://bittrex.com/api/v1.1{path}?'
 BASE_URL_V2_0 = 'https://bittrex.com/api/v2.0{path}?'
@@ -72,39 +78,18 @@ def using_requests(request_url, apisign):
     ).json()
 
 
-def api_v1_1(path=None, options=None, api_key=None, protection=PROTECTION_PUB):
-    request_url = BASE_URL_V1_1.format(path=path)
-    nonce = str(int(time.time() * 1000))
-
-    if protection != PROTECTION_PUB:
-        request_url = "{0}apikey={1}&nonce={2}&".format(request_url, api_key, nonce)
-
-    return request_url, options
-
-
-def api_v2_0(path=None, options=None, api_key=None, protection=PROTECTION_PUB):
-    request_url = BASE_URL_V2_0.format(path=path)
-    nonce = str(int(time.time() * 1000))
-
-    if protection != PROTECTION_PUB:
-        request_url = "{0}apikey={1}&nonce={2}&".format(request_url, api_key, nonce)
-
-    return request_url, options
-
-
 class Bittrex(object):
     """
     Used for requesting Bittrex with API key and API secret
     """
 
-    def __init__(self, api_key, api_secret, calls_per_second=1, dispatch=using_requests, using_api=USING_V1_1):
+    def __init__(self, api_key, api_secret, calls_per_second=1, dispatch=using_requests, api_version=API_V1_1):
         self.api_key = str(api_key) if api_key is not None else ''
         self.api_secret = str(api_secret) if api_secret is not None else ''
         self.dispatch = dispatch
         self.call_rate = 1.0 / calls_per_second
         self.last_call = None
-        self.using_api = using_api
-        self.api_dispatch = api_v2_0 if using_api == USING_V2_0 else api_v1_1
+        self.api_version = api_version
 
     def decrypt(self):
         if encrypted:
@@ -143,15 +128,20 @@ class Bittrex(object):
         :return: JSON response from Bittrex
         :rtype : dict
         """
+
         if not options:
             options = {}
 
-        if self.using_api not in path_dict:
-            raise Exception('method call not available under API version {}'.format(self.using_api))
+        if self.api_version not in path_dict:
+            raise Exception('method call not available under API version {}'.format(self.api_version))
 
-        request_url, options = \
-            self.api_dispatch(protection=protection, options=options, api_key=self.api_key,
-                              path=path_dict[self.using_api])
+        request_url = BASE_URL_V2_0 if self.api_version == API_V2_0 else BASE_URL_V1_1
+        request_url = request_url.format(path=path_dict[self.api_version])
+
+        nonce = str(int(time.time() * 1000))
+
+        if protection != PROTECTION_PUB:
+            request_url = "{0}apikey={1}&nonce={2}&".format(request_url, self.api_key, nonce)
 
         request_url += urlencode(options)
 
@@ -193,8 +183,8 @@ class Bittrex(object):
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/public/getmarkets',
-            USING_V2_0: '/pub/Markets/GetMarkets'
+            API_V1_1: '/public/getmarkets',
+            API_V2_0: '/pub/Markets/GetMarkets'
         }, protection=PROTECTION_PUB)
 
     def get_currencies(self):
@@ -210,8 +200,8 @@ class Bittrex(object):
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/public/getcurrencies',
-            USING_V2_0: '/pub/Currencies/GetCurrencies'
+            API_V1_1: '/public/getcurrencies',
+            API_V2_0: '/pub/Currencies/GetCurrencies'
         }, protection=PROTECTION_PUB)
 
     def get_ticker(self, market):
@@ -220,7 +210,7 @@ class Bittrex(object):
 
         Endpoints:
         1.1 /public/getticker
-        2.0 /pub/Currencies/GetCurrencies
+        2.0 NO EQUIVALENT -- but get_candlesticks gives comparable data
 
         :param market: String literal for the market (ex: BTC-LTC)
         :type market: str
@@ -228,9 +218,8 @@ class Bittrex(object):
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/public/getticker',
-            USING_V2_0: '/pub/Currencies/GetCurrencies'
-        }, options={'market': market, 'marketname': market}, protection=PROTECTION_PUB)
+            API_V1_1: '/public/getticker',
+        }, options={'market': market}, protection=PROTECTION_PUB)
 
     def get_market_summaries(self):
         """
@@ -238,14 +227,14 @@ class Bittrex(object):
 
         Endpoint:
         1.1 /public/getmarketsummaries
-        2.0 /pub/Market/GetMarketSummaries
+        2.0 /pub/Markets/GetMarketSummaries
 
         :return: Summaries of active exchanges in JSON
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/public/getmarketsummaries',
-            USING_V2_0: '/pub/Market/GetMarketSummaries'
+            API_V1_1: '/public/getmarketsummaries',
+            API_V2_0: '/pub/Markets/GetMarketSummaries'
         }, protection=PROTECTION_PUB)
 
     def get_marketsummary(self, market):
@@ -263,17 +252,19 @@ class Bittrex(object):
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/public/getmarketsummary',
-            USING_V2_0: '/pub/Market/GetMarketSummary'
+            API_V1_1: '/public/getmarketsummary',
+            API_V2_0: '/pub/Market/GetMarketSummary'
         }, options={'market': market, 'marketname': market}, protection=PROTECTION_PUB)
 
-    def get_orderbook(self, market, depth_type):
+    def get_orderbook(self, market, depth_type=BOTH_ORDERBOOK):
         """
-        Used to get retrieve the orderbook for a given market
+        Used to get retrieve the orderbook for a given market.
+
+        The depth_type parameter is IGNORED under v2.0 and both orderbooks are aleways returned
 
         Endpoint:
         1.1 /public/getorderbook
-        2.0 NO EQUIVALENT
+        2.0 /pub/Market/GetMarketOrderBook
 
         :param market: String literal for the market (ex: BTC-LTC)
         :type market: str
@@ -285,8 +276,9 @@ class Bittrex(object):
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/public/getorderbook',
-        }, options={'market': market, 'type': depth_type}, protection=PROTECTION_PUB)
+            API_V1_1: '/public/getorderbook',
+            API_V2_0: '/pub/Market/GetMarketOrderBook'
+        }, options={'market': market, 'marketname': market, 'type': depth_type}, protection=PROTECTION_PUB)
 
     def get_market_history(self, market):
         """
@@ -317,88 +309,99 @@ class Bittrex(object):
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/market/getmarkethistory',
-            USING_V2_0: '/pub/Market/GetMarketHistory'
+            API_V1_1: '/public/getmarkethistory',
+            API_V2_0: '/pub/Market/GetMarketHistory'
         }, options={'market': market, 'marketname': market}, protection=PROTECTION_PUB)
 
-    # def buy_limit(self, market, quantity, rate):
-    #     """
-    #     Used to place a buy order in a specific market. Use buylimit to place
-    #     limit orders Make sure you have the proper permissions set on your
-    #     API keys for this call to work
-    #
-    #     Endpoint: /market/buylimit
-    #
-    #     :param market: String literal for the market (ex: BTC-LTC)
-    #     :type market: str
-    #     :param quantity: The amount to purchase
-    #     :type quantity: float
-    #     :param rate: The rate at which to place the order.
-    #         This is not needed for market orders
-    #     :type rate: float
-    #     :return:
-    #     :rtype : dict
-    #     """
-    #     return self._api_query(path_dict={
-    #         USING_V1_1: '',
-    #         USING_V2_0: ''
-    #     }, options={'market': market,
-    #                 'quantity': quantity,
-    #                 'rate': rate})
-    #
-    # def sell_limit(self, market, quantity, rate):
-    #     """
-    #     Used to place a sell order in a specific market. Use selllimit to place
-    #     limit orders Make sure you have the proper permissions set on your
-    #     API keys for this call to work
-    #
-    #     Endpoint: /market/selllimit
-    #
-    #     :param market: String literal for the market (ex: BTC-LTC)
-    #     :type market: str
-    #     :param quantity: The amount to purchase
-    #     :type quantity: float
-    #     :param rate: The rate at which to place the order.
-    #         This is not needed for market orders
-    #     :type rate: float
-    #     :return:
-    #     :rtype : dict
-    #     """
-    #     return self._api_query(path_dict={
-    #         USING_V1_1: '',
-    #         USING_V2_0: ''
-    #     }, options={'market': market,
-    #                 'quantity': quantity,
-    #                 'rate': rate})
+    def buy_limit(self, market, quantity, rate):
+        """
+        Used to place a buy order in a specific market. Use buylimit to place
+        limit orders Make sure you have the proper permissions set on your
+        API keys for this call to work
 
-    # def cancel(self, uuid):
-    #     """
-    #     Used to cancel a buy or sell order
-    #
-    #     Endpoint: /market/cancel
-    #
-    #     :param uuid: uuid of buy or sell order
-    #     :type uuid: str
-    #     :return:
-    #     :rtype : dict
-    #     """
-    #     return self._api_query('cancel', {'uuid': uuid})
-    #
-    # def get_open_orders(self, market=None):
-    #     """
-    #     Get all orders that you currently have opened.
-    #     A specific market can be requested.
-    #
-    #     Endpoint: /market/getopenorders
-    #
-    #     :param market: String literal for the market (ie. BTC-LTC)
-    #     :type market: str
-    #     :return: Open orders info in JSON
-    #     :rtype : dict
-    #     """
-    #     return self._api_query('getopenorders',
-    #                            {'market': market} if market else None)
-    #
+        Endpoint:
+        1.1 /market/buylimit
+        2.0 NO Direct equivalent.  Use trade_buy for LIMIT and MARKET buys
+
+        :param market: String literal for the market (ex: BTC-LTC)
+        :type market: str
+        :param quantity: The amount to purchase
+        :type quantity: float
+        :param rate: The rate at which to place the order.
+            This is not needed for market orders
+        :type rate: float
+        :return:
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/market/buylimit',
+        }, options={'market': market,
+                    'quantity': quantity,
+                    'rate': rate}, protection=PROTECTION_PRV)
+
+    def sell_limit(self, market, quantity, rate):
+        """
+        Used to place a sell order in a specific market. Use selllimit to place
+        limit orders Make sure you have the proper permissions set on your
+        API keys for this call to work
+
+        Endpoint:
+        1.1 /market/selllimit
+        2.0 NO Direct equivalent.  Use trade_sell for LIMIT and MARKET sells
+
+        :param market: String literal for the market (ex: BTC-LTC)
+        :type market: str
+        :param quantity: The amount to purchase
+        :type quantity: float
+        :param rate: The rate at which to place the order.
+            This is not needed for market orders
+        :type rate: float
+        :return:
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/market/selllimit',
+        }, options={'market': market,
+                    'quantity': quantity,
+                    'rate': rate}, protection=PROTECTION_PRV)
+
+    def cancel(self, uuid):
+        """
+        Used to cancel a buy or sell order
+
+        Endpoint:
+        1.1 /market/cancel
+        2.0 /key/market/cancel
+
+        :param uuid: uuid of buy or sell order
+        :type uuid: str
+        :return:
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/market/cancel',
+            API_V2_0: '/key/market/cancel'
+        }, options={'uuid': uuid, 'orderid': uuid}, protection=PROTECTION_PRV)
+
+    def get_open_orders(self, market=None):
+        """
+        Get all orders that you currently have opened.
+        A specific market can be requested.
+
+        Endpoint:
+        1.1 /market/getopenorders
+        2.0 /key/orders/getopenorders
+
+        :param market: String literal for the market (ie. BTC-LTC)
+        :type market: str
+        :return: Open orders info in JSON
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/market/getopenorders',
+            API_V2_0: '/key/market/getopenorders'
+        }, options={'market': market, 'marketname': market} if market else None, protection=PROTECTION_PRV)
+
     def get_balances(self):
         """
         Used to retrieve all balances from your account.
@@ -424,8 +427,8 @@ class Bittrex(object):
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/account/getbalances',
-            USING_V2_0: '/key/balance/getbalances'
+            API_V1_1: '/account/getbalances',
+            API_V2_0: '/key/balance/getbalances'
         }, protection=PROTECTION_PRV)
 
     def get_balance(self, currency):
@@ -453,114 +456,140 @@ class Bittrex(object):
         :rtype : dict
         """
         return self._api_query(path_dict={
-            USING_V1_1: '/account/getbalance',
-            USING_V2_0: '/key/balance/getbalance'
+            API_V1_1: '/account/getbalance',
+            API_V2_0: '/key/balance/getbalance'
         }, options={'currency': currency, 'currencyname': currency}, protection=PROTECTION_PRV)
 
-        # def get_deposit_address(self, currency):
-        #     """
-        #     Used to generate or retrieve an address for a specific currency
-        #
-        #     Endpoint: /account/getdepositaddress
-        #
-        #     :param currency: String literal for the currency (ie. BTC)
-        #     :type currency: str
-        #     :return: Address info in JSON
-        #     :rtype : dict
-        #     """
-        #     return self._api_query('getdepositaddress', {'currency': currency})
-        #
-        # def withdraw(self, currency, quantity, address):
-        #     """
-        #     Used to withdraw funds from your account
-        #
-        #     Endpoint: /account/withdraw
-        #
-        #     :param currency: String literal for the currency (ie. BTC)
-        #     :type currency: str
-        #     :param quantity: The quantity of coins to withdraw
-        #     :type quantity: float
-        #     :param address: The address where to send the funds.
-        #     :type address: str
-        #     :return:
-        #     :rtype : dict
-        #     """
-        #     return self._api_query('withdraw',
-        #                            {'currency': currency,
-        #                             'quantity': quantity,
-        #                             'address': address})
-        #
-        # def get_order_history(self, market=None):
-        #     """
-        #     Used to retrieve order trade history of account
-        #
-        #     Endpoint: /account/getorderhistory
-        #
-        #     :param market: optional a string literal for the market (ie. BTC-LTC).
-        #         If omitted, will return for all markets
-        #     :type market: str
-        #     :return: order history in JSON
-        #     :rtype : dict
-        #     """
-        #     return self._api_query('getorderhistory',
-        #                            {'market': market} if market else None)
-        #
-        # def get_order(self, uuid):
-        #     """
-        #     Used to get details of buy or sell order
-        #
-        #     Endpoint: /account/getorder
-        #
-        #     :param uuid: uuid of buy or sell order
-        #     :type uuid: str
-        #     :return:
-        #     :rtype : dict
-        #     """
-        #     return self._api_query('getorder', {'uuid': uuid})
-        #
-        # def get_withdrawal_history(self, currency=None):
-        #     """
-        #     Used to view your history of withdrawals
-        #
-        #     Endpoint: /account/getwithdrawalhistory
-        #
-        #     :param currency: String literal for the currency (ie. BTC)
-        #     :type currency: str
-        #     :return: withdrawal history in JSON
-        #     :rtype : dict
-        #     """
-        #
-        #     return self._api_query('getwithdrawalhistory',
-        #                            {'currency': currency} if currency else None)
-        #
-        # def get_deposit_history(self, currency=None):
-        #     """
-        #     Used to view your history of deposits
-        #
-        #     Endpoint: /account/getdeposithistory
-        #
-        #     :param currency: String literal for the currency (ie. BTC)
-        #     :type currency: str
-        #     :return: deposit history in JSON
-        #     :rtype : dict
-        #     """
-        #     return self._api_query('getdeposithistory',
-        #                            {'currency': currency} if currency else None)
-        #
-        # def list_markets_by_currency(self, currency):
-        #     """
-        #     Helper function to see which markets exist for a currency.
-        #
-        #     Endpoint: /public/getmarkets
-        #
-        #     Example ::
-        #         >>> Bittrex(None, None).list_markets_by_currency('LTC')
-        #         ['BTC-LTC', 'ETH-LTC', 'USDT-LTC']
-        #
-        #     :param currency: String literal for the currency (ex: LTC)
-        #     :type currency: str
-        #     :return: List of markets that the currency appears in
-        #     :rtype: list
-        #     """
-        #     return [market['MarketName'] for market in self.get_markets()['result']
-        #             if market['MarketName'].lower().endswith(currency.lower())]
+    def get_deposit_address(self, currency):
+        """
+        Used to generate or retrieve an address for a specific currency
+
+        Endpoint:
+        1.1 /account/getdepositaddress
+        2.0 /key/balance/getdepositaddress
+
+        :param currency: String literal for the currency (ie. BTC)
+        :type currency: str
+        :return: Address info in JSON
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/account/getdepositaddress',
+            API_V2_0: '/key/balance/getdepositaddress'
+        }, options={'currency': currency, 'currencyname': currency}, protection=PROTECTION_PRV)
+
+    def withdraw(self, currency, quantity, address):
+        """
+        Used to withdraw funds from your account
+
+        Endpoint:
+        1.1 /account/withdraw
+        2.0 /key/balance/withdrawcurrency
+
+        :param currency: String literal for the currency (ie. BTC)
+        :type currency: str
+        :param quantity: The quantity of coins to withdraw
+        :type quantity: float
+        :param address: The address where to send the funds.
+        :type address: str
+        :return:
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/account/withdraw',
+            API_V2_0: '/key/balance/withdrawcurrency'
+        }, options={'currency': currency, 'quantity': quantity, 'address': address}, protection=PROTECTION_PRV)
+
+    def get_order_history(self, market=None):
+        """
+        Used to retrieve order trade history of account
+
+        Endpoint:
+        1.1 /account/getorderhistory
+        2.0 /key/orders/getorderhistory
+
+        :param market: optional a string literal for the market (ie. BTC-LTC).
+            If omitted, will return for all markets
+        :type market: str
+        :return: order history in JSON
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/account/getorderhistory',
+            API_V2_0: '/key/orders/getorderhistory'
+        }, options={'market': market, 'marketname': market} if market else None, protection=PROTECTION_PRV)
+
+    def get_order(self, uuid):
+        """
+        Used to get details of buy or sell order
+
+        Endpoint:
+        1.1 /account/getorder
+        2.0 /key/orders/getorder
+
+        :param uuid: uuid of buy or sell order
+        :type uuid: str
+        :return:
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/account/getorder',
+            API_V2_0: '/key/orders/getorder'
+        }, options={'uuid': uuid, 'orderid': uuid}, protection=PROTECTION_PRV)
+
+    def get_withdrawal_history(self, currency=None):
+        """
+        Used to view your history of withdrawals
+
+        Endpoint:
+        1.1 /account/getwithdrawalhistory
+        2.0 /key/balance/getwithdrawalhistory
+
+        :param currency: String literal for the currency (ie. BTC)
+        :type currency: str
+        :return: withdrawal history in JSON
+        :rtype : dict
+        """
+
+        return self._api_query(path_dict={
+            API_V1_1: '/account/getwithdrawalhistory',
+            API_V2_0: '/key/balance/getwithdrawalhistory'
+        }, options={'currency': currency, 'currencyname': currency} if currency else None,
+            protection=PROTECTION_PRV)
+
+    def get_deposit_history(self, currency=None):
+        """
+        Used to view your history of deposits
+
+        Endpoint:
+        1.1 /account/getdeposithistory
+        2.0 /key/balance/getdeposithistory
+
+        :param currency: String literal for the currency (ie. BTC)
+        :type currency: str
+        :return: deposit history in JSON
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V1_1: '/account/getdeposithistory',
+            API_V2_0: '/key/balance/getdeposithistory'
+        }, options={'currency': currency, 'currencyname': currency} if currency else None,
+            protection=PROTECTION_PRV)
+
+    def list_markets_by_currency(self, currency):
+        """
+        Helper function to see which markets exist for a currency.
+
+        Endpoint: /public/getmarkets
+
+        Example ::
+            >>> Bittrex(None, None).list_markets_by_currency('LTC')
+            ['BTC-LTC', 'ETH-LTC', 'USDT-LTC']
+
+        :param currency: String literal for the currency (ex: LTC)
+        :type currency: str
+        :return: List of markets that the currency appears in
+        :rtype: list
+        """
+        return [market['MarketName'] for market in self.get_markets()['result']
+                if market['MarketName'].lower().endswith(currency.lower())]
