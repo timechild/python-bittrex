@@ -390,7 +390,7 @@ class Bittrex(object):
 
         Endpoint:
         1.1 /market/getopenorders
-        2.0 /key/orders/getopenorders
+        2.0 /key/market/getopenorders
 
         :param market: String literal for the market (ie. BTC-LTC)
         :type market: str
@@ -593,3 +593,164 @@ class Bittrex(object):
         """
         return [market['MarketName'] for market in self.get_markets()['result']
                 if market['MarketName'].lower().endswith(currency.lower())]
+
+    def get_wallet_health(self):
+        """
+        Used to view wallet health
+
+        Endpoints:
+        1.1 NO Equivalent
+        2.0 /pub/Currencies/GetWalletHealth
+
+        :return:
+        """
+        return self._api_query(path_dict={
+            API_V2_0: '/pub/Currencies/GetWalletHealth'
+        }, protection=PROTECTION_PUB)
+
+    def get_balance_distribution(self):
+        """
+        Used to view balance distibution
+
+        Endpoints:
+        1.1 NO Equivalent
+        2.0 /pub/Currency/GetBalanceDistribution
+
+        :return:
+        """
+        return self._api_query(path_dict={
+            API_V2_0: '/pub/Currency/GetBalanceDistribution'
+        }, protection=PROTECTION_PUB)
+
+    def get_pending_withdrawls(self, currency=None):
+        """
+        Used to view your pending withdrawls
+
+        Endpoint:
+        1.1 NO EQUIVALENT
+        2.0 /key/balance/getpendingwithdrawals
+
+        :param currency: String literal for the currency (ie. BTC)
+        :type currency: str
+        :return: pending widthdrawls in JSON
+        :rtype : list
+        """
+        return self._api_query(path_dict={
+            API_V2_0: '/key/balance/getpendingwithdrawals'
+        }, options={'currencyname': currency} if currency else None,
+            protection=PROTECTION_PRV)
+
+    def get_pending_deposits(self, currency=None):
+        """
+        Used to view your pending deposits
+
+        Endpoint:
+        1.1 NO EQUIVALENT
+        2.0 /key/balance/getpendingdeposits
+
+        :param currency: String literal for the currency (ie. BTC)
+        :type currency: str
+        :return: pending deposits in JSON
+        :rtype : list
+        """
+        return self._api_query(path_dict={
+            API_V2_0: '/key/balance/getpendingdeposits'
+        }, options={'currencyname': currency} if currency else None,
+            protection=PROTECTION_PRV)
+
+    def generate_deposit_address(self, currency):
+        """
+        Generate a deposit address for the specified currency
+
+        Endpoint:
+        1.1 NO EQUIVALENT
+        2.0 /key/balance/generatedepositaddress
+
+        :param currency: String literal for the currency (ie. BTC)
+        :type currency: str
+        :return: result of creation operation
+        :rtype : dict
+        """
+        return self._api_query(path_dict={
+            API_V2_0: '/key/balance/getpendingdeposits'
+        }, options={'currencyname': currency}, protection=PROTECTION_PRV)
+
+    def trade_sell(self, market=None, order_type=None, quantity=None, rate=None, time_in_effect=None,
+                   condition_type=None, target=0.0):
+        """
+        Enter a sell order into the book
+        Endpoint
+        1.1 NO EQUIVALENT -- see sell_market or sell_limit
+        2.0 /key/market/tradesell
+
+        :param market: String literal for the market (ex: BTC-LTC)
+        :type market: str
+        :param order_type: ORDERTYPE_LIMIT = 'LIMIT' or ORDERTYPE_MARKET = 'MARKET'
+        :type order_type: str
+        :param quantity: The amount to purchase
+        :type quantity: float
+        :param rate: The rate at which to place the order.
+            This is not needed for market orders
+        :type rate: float
+        :param time_in_effect: TIMEINEFFECT_GOOD_TIL_CANCELLED = 'GOOD_TIL_CANCELLED',
+                TIMEINEFFECT_IMMEDIATE_OR_CANCEL = 'IMMEDIATE_OR_CANCEL', or TIMEINEFFECT_FILL_OR_KILL = 'FILL_OR_KILL'
+        :type time_in_effect: str
+        :param condition_type: CONDITIONTYPE_NONE = 'NONE', CONDITIONTYPE_GREATER_THAN = 'GREATER_THAN',
+                CONDITIONTYPE_LESS_THAN = 'LESS_THAN', CONDITIONTYPE_STOP_LOSS_FIXED = 'STOP_LOSS_FIXED',
+                CONDITIONTYPE_STOP_LOSS_PERCENTAGE = 'STOP_LOSS_PERCENTAGE'
+        :type condition_type: str
+        :param target: used in conjunction with condition_type
+        :type target: float
+        :return:
+        """
+        return self._api_query(path_dict={
+            API_V2_0: '/key/market/tradesell'
+        }, options={
+            'marketname': market,
+            'ordertype': order_type,
+            'quantity': quantity,
+            'rate': rate,
+            'timeInEffect': time_in_effect,
+            'conditiontype': condition_type,
+            'target': target
+        }, protection=PROTECTION_PRV)
+
+    def trade_buy(self, market=None, order_type=None, quantity=None, rate=None, time_in_effect=None,
+                  condition_type=None, target=0.0):
+        """
+        Enter a buy order into the book
+        Endpoint
+        1.1 NO EQUIVALENT -- see buy_market or buy_limit
+        2.0 /key/market/tradebuy
+
+        :param market: String literal for the market (ex: BTC-LTC)
+        :type market: str
+        :param order_type: ORDERTYPE_LIMIT = 'LIMIT' or ORDERTYPE_MARKET = 'MARKET'
+        :type order_type: str
+        :param quantity: The amount to purchase
+        :type quantity: float
+        :param rate: The rate at which to place the order.
+            This is not needed for market orders
+        :type rate: float
+        :param time_in_effect: TIMEINEFFECT_GOOD_TIL_CANCELLED = 'GOOD_TIL_CANCELLED',
+                TIMEINEFFECT_IMMEDIATE_OR_CANCEL = 'IMMEDIATE_OR_CANCEL', or TIMEINEFFECT_FILL_OR_KILL = 'FILL_OR_KILL'
+        :type time_in_effect: str
+        :param condition_type: CONDITIONTYPE_NONE = 'NONE', CONDITIONTYPE_GREATER_THAN = 'GREATER_THAN',
+                CONDITIONTYPE_LESS_THAN = 'LESS_THAN', CONDITIONTYPE_STOP_LOSS_FIXED = 'STOP_LOSS_FIXED',
+                CONDITIONTYPE_STOP_LOSS_PERCENTAGE = 'STOP_LOSS_PERCENTAGE'
+        :type condition_type: str
+        :param target: used in conjunction with condition_type
+        :type target: float
+        :return:
+        """
+        return self._api_query(path_dict={
+            API_V2_0: '/key/market/tradebuy'
+        }, options={
+            'marketname': market,
+            'ordertype': order_type,
+            'quantity': quantity,
+            'rate': rate,
+            'timeInEffect': time_in_effect,
+            'conditiontype': condition_type,
+            'target': target
+        }, protection=PROTECTION_PRV)
