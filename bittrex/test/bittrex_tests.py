@@ -1,7 +1,7 @@
 import unittest
 import json
 import os
-from bittrex.bittrex import Bittrex, API_V2_0, API_V1_1, BUY_ORDERBOOK
+from bittrex.bittrex import Bittrex, API_V2_0, API_V1_1, BUY_ORDERBOOK, TICKINTERVAL_ONEMIN
 
 IS_CI_ENV = True if 'IN_CI' in os.environ else False
 
@@ -77,6 +77,10 @@ class TestBittrexV11PublicAPI(unittest.TestCase):
     def test_get_balance_distribution(self):
         self.assertRaisesRegexp(Exception, 'method call not available', self.bittrex.get_balance_distribution)
 
+    def test_get_candles(self):
+        self.assertRaisesRegexp(Exception, 'method call not available', self.bittrex.get_candles, market='BTC-LTC',
+                                tick_interval=TICKINTERVAL_ONEMIN)
+
 
 class TestBittrexV20PublicAPI(unittest.TestCase):
     """
@@ -144,6 +148,11 @@ class TestBittrexV20PublicAPI(unittest.TestCase):
     def test_get_balance_distribution(self):
         actual = self.bittrex.get_balance_distribution()
         test_basic_response(self, actual, "get_balance_distribution")
+        self.assertIsInstance(actual['result'], list)
+
+    def test_get_candles(self):
+        actual = self.bittrex.get_candles('BTC-LTC', tick_interval=TICKINTERVAL_ONEMIN)
+        test_basic_response(self, actual, "test_get_candles")
         self.assertIsInstance(actual['result'], list)
 
 
