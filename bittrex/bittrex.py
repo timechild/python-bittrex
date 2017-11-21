@@ -792,3 +792,38 @@ class Bittrex(object):
         }, options={
             'marketName': market, 'tickInterval': tick_interval
         }, protection=PROTECTION_PUB)
+
+
+    def get_btc_price(self):
+        """
+                Returns the current USD Bitcoin price .
+                Endpoint:
+                1.1 NO EQUIVALENT
+                2.0 /pub/currencies/GetBTCPrice
+                Example  ::
+                    { success: true,
+                      message: "",
+                      result: {
+                        time: {
+                            updated: "Nov 16, 2017 18:18:00 UTC",
+                            updatedISO: "2017-11-16T18:18:00+00:00",
+                            updateduk: "Nov 16, 2017 at 18:18 GMT"
+                        },
+                        disclaimer: "This data was produced from the CoinDesk Bitcoin Price Index (USD). Non-USD currency data converted using hourly conversion rate from openexchangerates.org",
+                        bpi: {
+                            USD: {
+                                code: "USD",
+                                rate: "7,689.1775",
+                                description: "United States Dollar",
+                                rate_float: 7689.1775
+                                }
+                            }
+                        }
+                    }
+                :return: Current BTC price in USD in JSON
+                :rtype: dict
+                """
+
+        return self._api_query(path_dict={
+            API_V2_0: '/pub/currencies/GetBTCPrice'
+        }, protection=PROTECTION_PUB)    

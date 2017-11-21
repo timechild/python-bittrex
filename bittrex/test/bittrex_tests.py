@@ -155,6 +155,10 @@ class TestBittrexV20PublicAPI(unittest.TestCase):
         test_basic_response(self, actual, "test_get_candles")
         self.assertIsInstance(actual['result'], list)
 
+    def test_get_btc_price(self):
+        actual = self.bittrex.get_btc_price()
+        test_basic_response(self, actual, "get_btc_price")
+
 
 @unittest.skipIf(IS_CI_ENV, 'no account secrets uploaded in CI envieonment, TODO')
 class TestBittrexV11AccountAPI(unittest.TestCase):
