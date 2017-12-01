@@ -3,6 +3,11 @@ import json
 import os
 from bittrex.bittrex import Bittrex, API_V2_0, API_V1_1, BUY_ORDERBOOK, TICKINTERVAL_ONEMIN
 
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+
 IS_CI_ENV = True if 'IN_CI' in os.environ else False
 
 
@@ -118,6 +123,8 @@ class TestBittrexV20PublicAPI(unittest.TestCase):
     def test_get_currencies(self):
         actual = self.bittrex.get_currencies()
         test_basic_response(self, actual, "get_currencies")
+        self.assertTrue(isinstance(actual['result'], list), "result is not a list")
+        self.assertTrue('BTC' in str(actual['result']), 'BTC not in result list')
 
     def test_get_ticker(self):
         self.assertRaisesRegexp(Exception, 'method call not available', self.bittrex.get_ticker,
@@ -163,6 +170,10 @@ class TestBittrexV20PublicAPI(unittest.TestCase):
         actual = self.bittrex.get_latest_candle('BTC-LTC', tick_interval=TICKINTERVAL_ONEMIN)
         test_basic_response(self, actual, "test_get_latest_candle")
         self.assertIsInstance(actual['result'], list)
+
+
+def mocked_buy_limit_query(protection=None, path_dict=None, options=None):
+    return {"success": "true", "message": "", "result": {"uuid": "e606d53c-8d70-11e3-94b5-425861b86ab6"}}
 
 
 @unittest.skipIf(IS_CI_ENV, 'no account secrets uploaded in CI envieonment, TODO')
@@ -270,6 +281,11 @@ class TestBittrexV11AccountAPI(unittest.TestCase):
 
     def test_generate_deposit_address(self):
         self.assertRaisesRegexp(Exception, 'method call not available', self.bittrex.generate_deposit_address, currency='BTC')
+
+    @mock.patch('bittrex.Bittrex._api_query', side_effect=mocked_buy_limit_query)
+    def test_buy_limit(self, mock_buy):
+        actual = self.bittrex.buy_limit(market='BTC-LTC', quantity=0.00015, rate=0.00865)
+        test_basic_response(self, actual, "test_buy_limit")
 
 
 @unittest.skipIf(IS_CI_ENV, 'no account secrets uploaded in CI envieonment, TODO')
