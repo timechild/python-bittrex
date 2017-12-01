@@ -23,6 +23,48 @@ def test_auth_basic_failures(unit_test, result, test_type):
     unit_test.assertIsNone(result['result'], "{0:s} failed response result not None".format(test_type))
 
 
+def mocked_buy_sell_withdraw_query(protection=None, path_dict=None, options=None):
+    return {"success": "true", "message": "", "result": {"uuid": "e606d53c-8d70-11e3-94b5-425861b86ab6"}}
+
+
+def mocked_cancel_query(protection=None, path_dict=None, options=None):
+    return {"success": "true", "message": "", "result": "null"}
+
+
+def mocked_get_order_query(protection=None, path_dict=None, options=None):
+    return json.loads(
+                        '{\
+                            "success" : "true", \
+                            "message" : "", \
+                            "result" : { \
+                                "AccountId" : null, \
+                                "OrderUuid" : "0cb4c4e4-bdc7-4e13-8c13-430e587d2cc1", \
+                                "Exchange" : "BTC-SHLD", \
+                                "Type" : "LIMIT_BUY", \
+                                "Quantity" : 1000.00000000, \
+                                "QuantityRemaining" : 1000.00000000, \
+                                "Limit" : 0.00000001, \
+                                "Reserved" : 0.00001000, \
+                                "ReserveRemaining" : 0.00001000, \
+                                "CommissionReserved" : 0.00000002, \
+                                "CommissionReserveRemaining" : 0.00000002,\
+                                "CommissionPaid" : 0.00000000, \
+                                "Price" : 0.00000000, \
+                                "PricePerUnit" : null, \
+                                "Opened" : "2014-07-13T07:45:46.27", \
+                                "Closed" : null, \
+                                "IsOpen" : true, \
+                                "Sentinel" : "6c454604-22e2-4fb4-892e-179eede20972", \
+                                "CancelInitiated" : false, \
+                                "ImmediateOrCancel" : false, \
+                                "IsConditional" : false, \
+                                "Condition" : "NONE", \
+                                "ConditionTarget" : null \
+                            } \
+                        }'
+                    )
+
+
 class TestBittrexV11PublicAPI(unittest.TestCase):
     """
     Integration tests for the Bittrex public API.
@@ -172,47 +214,6 @@ class TestBittrexV20PublicAPI(unittest.TestCase):
         self.assertIsInstance(actual['result'], list)
 
 
-def mocked_buy_sell_withdraw_query(protection=None, path_dict=None, options=None):
-    return {"success": "true", "message": "", "result": {"uuid": "e606d53c-8d70-11e3-94b5-425861b86ab6"}}
-
-
-def mocked_cancel_query(protection=None, path_dict=None, options=None):
-    return {"success": "true", "message": "", "result": "null"}
-
-
-def mocked_get_order(protection=None, path_dict=None, options=None):
-    return json.loads(
-                        '{\
-                            "success" : "true", \
-                            "message" : "", \
-                            "result" : { \
-                                "AccountId" : null, \
-                                "OrderUuid" : "0cb4c4e4-bdc7-4e13-8c13-430e587d2cc1", \
-                                "Exchange" : "BTC-SHLD", \
-                                "Type" : "LIMIT_BUY", \
-                                "Quantity" : 1000.00000000, \
-                                "QuantityRemaining" : 1000.00000000, \
-                                "Limit" : 0.00000001, \
-                                "Reserved" : 0.00001000, \
-                                "ReserveRemaining" : 0.00001000, \
-                                "CommissionReserved" : 0.00000002, \
-                                "CommissionReserveRemaining" : 0.00000002,\
-                                "CommissionPaid" : 0.00000000, \
-                                "Price" : 0.00000000, \
-                                "PricePerUnit" : null, \
-                                "Opened" : "2014-07-13T07:45:46.27", \
-                                "Closed" : null, \
-                                "IsOpen" : true, \
-                                "Sentinel" : "6c454604-22e2-4fb4-892e-179eede20972", \
-                                "CancelInitiated" : false, \
-                                "ImmediateOrCancel" : false, \
-                                "IsConditional" : false, \
-                                "Condition" : "NONE", \
-                                "ConditionTarget" : null \
-                            } \
-                        }'
-                    )
-
 @unittest.skipIf(IS_CI_ENV, 'no account secrets uploaded in CI envieonment, TODO')
 class TestBittrexV11AccountAPI(unittest.TestCase):
     """
@@ -339,33 +340,11 @@ class TestBittrexV11AccountAPI(unittest.TestCase):
         actual = self.bittrex.withdraw(currency='BTC', quantity=0.0001, address='3QtaHWctjScd17uewd5LDpjKfmoAeyo9Lj')
         test_basic_response(self, actual, "test_withdrawl")
 
-    @mock.patch('bittrex.Bittrex._api_query', side_effect=mocked_get_order)
+    @mock.patch('bittrex.Bittrex._api_query', side_effect=mocked_get_order_query)
     def test_get_order(self, mock_order):
         actual = self.bittrex.get_order(uuid='e606d53c-8d70-11e3-94b5-425861b86ab6')
         test_basic_response(self, actual, "test_get_order")
         self.assertIsInstance(actual['result'], dict, "result is not a dict")
-
-    @mock.patch('bittrex.Bittrex._api_query', side_effect=mocked_buy_sell_withdraw_query)
-    def test_trade_sell(self, mock_trade_sell):
-        actual = self.bittrex.trade_sell(market='BTC-LTC',
-                                         order_type='MARKET',
-                                         quantity=0.0001,
-                                         rate=0.00865,
-                                         time_in_effect='IMMEDIATE_OR_CANCEL',
-                                         condition_type='LESS_THAN',
-                                         target=0.00876)
-        test_basic_response(self, actual, "test_trade_sell")
-
-    @mock.patch('bittrex.Bittrex._api_query', side_effect=mocked_buy_sell_withdraw_query)
-    def test_trade_buy(self, mock_trade_buy):
-        actual = self.bittrex.trade_buy(market='BTC-LTC',
-                                        order_type='MARKET',
-                                        quantity=0.00015,
-                                        rate=0.00899,
-                                        time_in_effect='IMMEDIATE_OR_CANCEL',
-                                        condition_type='MORE_THAN',
-                                        target=0.00899)
-        test_basic_response(self, actual, "test_trade_buy")
 
 
 @unittest.skipIf(IS_CI_ENV, 'no account secrets uploaded in CI envieonment, TODO')
@@ -488,6 +467,28 @@ class TestBittrexV20AccountAPI(unittest.TestCase):
         actual = self.bittrex.generate_deposit_address(currency='BTC')
         test_basic_response(self, actual, "generate_deposit_address")
         self.assertIsInstance(actual['result'], list, "result is not a list")
+
+    @mock.patch('bittrex.Bittrex._api_query', side_effect=mocked_buy_sell_withdraw_query)
+    def test_trade_sell(self, mock_trade_sell):
+        actual = self.bittrex.trade_sell(market='BTC-LTC',
+                                         order_type='MARKET',
+                                         quantity=0.0001,
+                                         rate=0.00865,
+                                         time_in_effect='IMMEDIATE_OR_CANCEL',
+                                         condition_type='LESS_THAN',
+                                         target=0.00876)
+        test_basic_response(self, actual, "test_trade_sell")
+
+    @mock.patch('bittrex.Bittrex._api_query', side_effect=mocked_buy_sell_withdraw_query)
+    def test_trade_buy(self, mock_trade_buy):
+        actual = self.bittrex.trade_buy(market='BTC-LTC',
+                                        order_type='MARKET',
+                                        quantity=0.00015,
+                                        rate=0.00899,
+                                        time_in_effect='IMMEDIATE_OR_CANCEL',
+                                        condition_type='MORE_THAN',
+                                        target=0.00899)
+        test_basic_response(self, actual, "test_trade_buy")
 
 
 if __name__ == '__main__':
